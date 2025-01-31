@@ -2,7 +2,6 @@ package client
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,11 +11,12 @@ import (
 )
 
 type Client struct {
-	cfg       *share.Config
-	info      *share.ClientInfo
-	nc        *share.NatsConn
-	ErrChan   chan error
-	stdinChan chan string
+	cfg            *share.Config
+	info           *share.ClientInfo
+	nc             *share.NatsConn
+	ErrChan        chan error
+	stdinChan      chan string
+	commandHandler *CommandHandler
 }
 
 var client *Client
@@ -24,13 +24,17 @@ var client *Client
 func InitClient(cfg *share.Config) {
 	info, _ := share.ReadClientInfo()
 	nc := share.NewNatsConn(cfg)
+	ErrChan := make(chan error)
 	client = &Client{
 		cfg,
 		info,
 		nc,
-		make(chan error),
+		ErrChan,
 		make(chan string),
+		nil,
 	}
+	handler := NewCommandHandler(client)
+	client.commandHandler = handler
 	go client.ReadInput()
 	go client.Sync()
 	go client.HandleError()
@@ -52,29 +56,12 @@ func (c *Client) HandleInput() {
 	select {
 	case line := <-c.stdinChan:
 		fmt.Println("received", line)
-
-		switch line {
-		case "health":
-			c.ensureServer()
-			sbj := fmt.Sprintf("%s-test", c.info.Server.ID)
-			fmt.Println("sbj", sbj)
-			cmd := share.NewClientCommand("health_check", nil)
-			req, _ := json.Marshal(cmd)
-			msg, err := c.nc.RequestToSubject(sbj, req, time.Second)
-			if err != nil {
-				c.ErrChan <- errors.New(fmt.Sprintf("Error requesting subject %s: %s", sbj, err.Error()))
-			} else {
-				fmt.Println("msg.Reply", string(msg.Data))
-			}
-		default:
-			c.ErrChan <- errors.New(fmt.Sprintf("Unknown command %s", line))
-		}
-
+		c.commandHandler.ParseCommand(line)
 	}
 }
 func (c *Client) ensureServer() {
 	if c.info.Server == nil {
-		c.ErrChan <- errors.New("Please register your server first")
+		c.ErrChan <- errors.New("please register your server first")
 		time.Sleep(time.Second)
 		defer os.Exit(1)
 	}
