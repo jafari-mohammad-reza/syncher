@@ -41,6 +41,9 @@ func InitServerSyncherDir() error {
 }
 
 func ReadServerInfo() (*ServerInfo, error) {
+	if err := InitServerSyncherDir(); err != nil {
+		return nil, err
+	}
 	var info ServerInfo
 	homeDir, _ := os.UserHomeDir()
 	ph := path.Join(homeDir, ".syncher", "server.json")
