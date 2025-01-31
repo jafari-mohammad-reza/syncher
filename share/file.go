@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 )
 
@@ -90,4 +91,10 @@ func CheckFileSize(file string, fileMb int64) error {
 		return fmt.Errorf("file %s is too large, it is %d bytes", file, size)
 	}
 	return nil
+}
+
+func UploadFile(fileName string, file []byte) error {
+	homeDir, _ := os.UserHomeDir()
+	ph := path.Join(homeDir, ".syncher", "uploads", fileName)
+	return os.WriteFile(ph, file, 0644)
 }

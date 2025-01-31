@@ -38,8 +38,12 @@ func (c *UploadCommand) GetName() string {
 }
 
 func (c *UploadCommand) Execute() (interface{}, error) {
-	fmt.Println("UPLOAD")
-	return c.cmd.Args, nil
+	if len(c.cmd.Args) > 0 {
+		for fileName, fileContent := range c.cmd.Args {
+			share.UploadFile(fmt.Sprintf("%s_%s", c.cmd.ClientId, fileName), fileContent)
+		}
+	}
+	return "file uploaded", nil
 }
 
 // ParseCommand dynamically creates commands from messages
@@ -51,7 +55,7 @@ func parseCommand(msg *nats.Msg) (ICommand, error) {
 	}
 	name := names[len(names)-1]
 	switch name {
-	case "health_check":
+	case "health":
 		return &HealthCheckCommand{}, nil
 	case "upload":
 		return &UploadCommand{

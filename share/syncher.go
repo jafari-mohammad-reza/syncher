@@ -64,6 +64,13 @@ func InitServerSyncherDir() error {
 		}
 	}
 
+	UploadDir := path.Join(ph, "uploads")
+	if _, err := os.Stat(UploadDir); errors.Is(err, os.ErrNotExist) {
+		if err := os.Mkdir(UploadDir, 0644); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -158,14 +165,16 @@ func ReadClientInfo() (*ClientInfo, error) {
 }
 
 type ClientCommand struct {
-	ID   uuid.UUID         `json:"id"`
-	Args map[string][]byte `json:"args"`
+	ID       uuid.UUID         `json:"id"`
+	ClientId uuid.UUID         `json:"client_id"`
+	Args     map[string][]byte `json:"args"`
 }
 
-func NewClientCommand(name string, args map[string][]byte) *ClientCommand {
+func NewClientCommand(clientId uuid.UUID, args map[string][]byte) *ClientCommand {
 	return &ClientCommand{
-		ID:   uuid.New(),
-		Args: args,
+		ID:       uuid.New(),
+		ClientId: clientId,
+		Args:     args,
 	}
 }
 

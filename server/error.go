@@ -29,7 +29,7 @@ func NewServerError(msg string, IsPublishable bool, ncMsg *nats.Msg) *Error {
 func (s *Server) SaveErrorLog(err *Error) {
 	slog.Error("Server error", "err", err.Msg)
 	homeDir, _ := os.UserHomeDir()
-	ph := path.Join(homeDir, ".syncher", "server.log")
+	ph := path.Join(homeDir, ".syncher", "server-error.log")
 
 	log, _ := json.Marshal(ErrorLog{
 		Error: err,

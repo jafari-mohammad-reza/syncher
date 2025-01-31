@@ -22,7 +22,7 @@ var server *Server
 
 var subjects = []string{
 	"upload",
-	"test",
+	"health",
 	// TODO: new subjects will be added
 }
 

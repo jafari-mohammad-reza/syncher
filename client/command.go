@@ -27,8 +27,8 @@ func NewCommandHandler(client *Client) *CommandHandler {
 }
 
 func (ch *CommandHandler) HealthCheck(args []string) {
-	sbj := fmt.Sprintf("%s-test", ch.client.info.Server.ID)
-	cmd := share.NewClientCommand("health_check", nil)
+	sbj := fmt.Sprintf("%s-health", ch.client.info.Server.ID)
+	cmd := share.NewClientCommand(ch.client.info.ID, nil)
 	req, _ := json.Marshal(cmd)
 	msg, err := ch.client.nc.RequestToSubject(sbj, req, time.Second)
 	if err != nil {
@@ -55,12 +55,12 @@ func (ch *CommandHandler) Upload(args []string) {
 		ch.client.ErrChan <- errors.New(fmt.Sprintf("Error getting files bytes: %s", err.Error()))
 		return
 	}
-	_, err = share.CreateArchive(files)
+	arch, err := share.CreateArchive(files)
 	if err != nil {
 		ch.client.ErrChan <- errors.New(fmt.Sprintf("Error CreateArchive: %s", err.Error()))
 		return
 	}
-	cmd := share.NewClientCommand("upload", nil)
+	cmd := share.NewClientCommand(ch.client.info.ID, map[string][]byte{"arch.tar.gz": arch})
 	req, _ := json.Marshal(cmd)
 	fmt.Println(string(req))
 	err = ch.client.nc.PublishToSubject(sbj, req)
