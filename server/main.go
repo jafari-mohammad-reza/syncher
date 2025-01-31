@@ -1,16 +1,14 @@
 package server
 
 import (
-	"errors"
 	"fmt"
-	"log/slog"
 	"sync_server/share"
 )
 
 type Server struct {
 	cfg     *share.Config
 	nc      *share.NatsConn
-	ErrChan chan error
+	ErrChan chan *Error
 }
 
 var server *Server
@@ -22,23 +20,25 @@ func InitServer(cfg *share.Config) {
 	server = &Server{
 		cfg,
 		nc,
-		make(chan error),
+		make(chan *Error),
 	}
 	go server.Start()
-	fmt.Println("Server is running")
+	go server.HandleErrors()
 
-	select {
-	// TODO: run a error handler for server later that saves errors in log file
-	case err := <-server.ErrChan:
-		if err != nil {
-			slog.Error("Server error", "err", err.Error())
-		}
-	}
+	select {}
 }
 func (s *Server) Start() {
-	info, err := share.ReadServerInfo()
+	fmt.Println("Server is running")
+	_, err := share.ReadServerInfo()
 	if err != nil {
-		s.ErrChan <- errors.New("ReadServerInfo error:" + err.Error())
+		s.ErrChan <- NewServerError("ReadServerInfo error: "+err.Error(), false)
 	}
-	fmt.Println(info)
+	s.ErrChan <- NewServerError("Test error", false)
+}
+func (s *Server) HandleErrors() {
+	for err := range s.ErrChan { // Continuously listen for errors
+		if err != nil {
+			s.SaveErrorLog(err)
+		}
+	}
 }
