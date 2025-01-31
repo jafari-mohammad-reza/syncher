@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync_server/share"
 	"time"
 )
@@ -53,10 +54,10 @@ func (c *Client) ReadInput() {
 }
 
 func (c *Client) HandleInput() {
-	select {
-	case line := <-c.stdinChan:
-		fmt.Println("received", line)
-		c.commandHandler.ParseCommand(line)
+	for line := range c.stdinChan {
+		if strings.Trim(line, " ") != "" {
+			c.commandHandler.ParseCommand(line)
+		}
 	}
 }
 func (c *Client) ensureServer() {
@@ -69,14 +70,12 @@ func (c *Client) ensureServer() {
 
 // Sync this method will watch to client shared dirs and client settings
 func (c *Client) Sync() error {
-
 	share.InitServerSyncherDir()
 	slog.Info("InitClient")
 	return nil
 }
 func (c *Client) HandleError() {
-	select {
-	case err := <-c.ErrChan:
+	for err := range c.ErrChan {
 		if err != nil {
 			slog.Error("Client HandleError", "err", err.Error())
 		}

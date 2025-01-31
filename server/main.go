@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/nats-io/nats.go"
 	"log/slog"
@@ -20,6 +21,7 @@ type Server struct {
 var server *Server
 
 var subjects = []string{
+	"upload",
 	"test",
 	// TODO: new subjects will be added
 }
@@ -54,27 +56,23 @@ func (s *Server) Start() {
 }
 func (s *Server) IniSubscriptions() {
 	slog.Info("Server IniSubscriptions")
-	go s.SubHandler()
 	for _, subject := range s.subscriptionSubjects {
 		sub, err := s.nc.SubscribeToSubject(subject)
 		if err != nil {
 			s.ErrChan <- NewServerError("SubscribeToSubject error: "+err.Error(), false, nil)
+			continue
 		}
 		slog.Info("Subscribed to subject: " + subject)
-		s.subscriptions <- sub
+		go s.HandleSubscription(sub)
 	}
-
 }
-func (s *Server) SubHandler() {
-	slog.Info("Server SubHandler")
-	for sub := range s.subscriptions {
-
-		for msg, err := range sub.Msgs() {
-			if err != nil {
-				s.ErrChan <- NewServerError(fmt.Sprintf("SubHandler %s subject handle error: %s", sub.Subject, err.Error()), true, msg)
-			}
-			go s.HandleMsg(msg)
+func (s *Server) HandleSubscription(sub *nats.Subscription) {
+	for msg, err := range sub.Msgs() {
+		if err != nil {
+			s.ErrChan <- NewServerError(fmt.Sprintf("SubHandler %s subject handle error: %s", sub.Subject, err.Error()), true, msg)
+			continue
 		}
+		go s.HandleMsg(msg)
 	}
 }
 
@@ -87,7 +85,8 @@ func (s *Server) HandleMsg(msg *nats.Msg) {
 		if err != nil {
 			s.ErrChan <- NewServerError(fmt.Sprintf("execute %s subject %s command error: %s", msg.Subject, cmd.GetName(), err.Error()), true, msg)
 		} else {
-			msg.Respond([]byte(resp.(string)))
+			r, _ := json.Marshal(resp)
+			msg.Respond(r)
 		}
 	}
 }

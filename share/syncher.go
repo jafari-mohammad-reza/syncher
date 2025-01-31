@@ -158,15 +158,13 @@ func ReadClientInfo() (*ClientInfo, error) {
 }
 
 type ClientCommand struct {
-	ID   uuid.UUID     `json:"id"`
-	Name string        `json:"name"`
-	Args []interface{} `json:"args"`
+	ID   uuid.UUID         `json:"id"`
+	Args map[string][]byte `json:"args"`
 }
 
-func NewClientCommand(name string, args ...interface{}) *ClientCommand {
+func NewClientCommand(name string, args map[string][]byte) *ClientCommand {
 	return &ClientCommand{
 		ID:   uuid.New(),
-		Name: name,
 		Args: args,
 	}
 }
