@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"github.com/nats-io/nats.go"
 	"log/slog"
+	"os"
 	"sync_server/share"
 )
 
 type Server struct {
 	cfg                  *share.Config
+	info                 *share.ServerInfo
 	nc                   *share.NatsConn
 	ErrChan              chan *Error
 	subscriptionSubjects []string
@@ -26,7 +28,8 @@ func InitServer(cfg *share.Config) {
 	nc := share.NewNatsConn(cfg)
 	info, err := share.ReadServerInfo()
 	if err != nil {
-		panic(err)
+		slog.Error("InitServer", "ReadServerInfo err", err)
+		os.Exit(1)
 	}
 	subscriptionSubjects := []string{}
 	for _, sub := range subjects {
@@ -34,6 +37,7 @@ func InitServer(cfg *share.Config) {
 	}
 	server = &Server{
 		cfg,
+		info,
 		nc,
 		make(chan *Error),
 		subscriptionSubjects, // each server will subscribe to its own subject as we can connect many servers to same nats server
@@ -45,10 +49,6 @@ func InitServer(cfg *share.Config) {
 }
 func (s *Server) Start() {
 	slog.Info("Server is running")
-	_, err := share.ReadServerInfo()
-	if err != nil {
-		s.ErrChan <- NewServerError("ReadServerInfo error: "+err.Error(), false)
-	}
 	go server.HandleErrors()
 	go s.IniSubscriptions()
 }
@@ -58,7 +58,7 @@ func (s *Server) IniSubscriptions() {
 	for _, subject := range s.subscriptionSubjects {
 		sub, err := s.nc.SubscribeToSubject(subject)
 		if err != nil {
-			s.ErrChan <- NewServerError("SubscribeToSubject error: "+err.Error(), false)
+			s.ErrChan <- NewServerError("SubscribeToSubject error: "+err.Error(), false, nil)
 		}
 		slog.Info("Subscribed to subject: " + subject)
 		s.subscriptions <- sub
@@ -71,26 +71,34 @@ func (s *Server) SubHandler() {
 
 		for msg, err := range sub.Msgs() {
 			if err != nil {
-				s.ErrChan <- NewServerError(fmt.Sprintf("SubHandler %s subject handle error: %s", sub.Subject, err.Error()), false)
+				s.ErrChan <- NewServerError(fmt.Sprintf("SubHandler %s subject handle error: %s", sub.Subject, err.Error()), true, msg)
 			}
-			cmd, err := parseCommand(msg)
-			if err != nil {
-				s.ErrChan <- NewServerError(fmt.Sprintf("parse %s subject command error: %s", sub.Subject, err.Error()), false)
-			}
-			resp, err := cmd.Execute()
-			if err != nil {
-				s.ErrChan <- NewServerError(fmt.Sprintf("execute %s subject %s command error: %s", sub.Subject, cmd.GetName(), err.Error()), false)
-				msg.Respond([]byte(err.Error()))
-			} else {
-				msg.Respond([]byte(resp.(string)))
-			}
+			go s.HandleMsg(msg)
 		}
 	}
 }
+
+func (s *Server) HandleMsg(msg *nats.Msg) {
+	cmd, err := parseCommand(msg)
+	if err != nil {
+		s.ErrChan <- NewServerError(fmt.Sprintf("parse %s subject command error: %s", msg.Subject, err.Error()), true, msg)
+	} else {
+		resp, err := cmd.Execute()
+		if err != nil {
+			s.ErrChan <- NewServerError(fmt.Sprintf("execute %s subject %s command error: %s", msg.Subject, cmd.GetName(), err.Error()), true, msg)
+		} else {
+			msg.Respond([]byte(resp.(string)))
+		}
+	}
+}
+
 func (s *Server) HandleErrors() {
 	for err := range s.ErrChan { // Continuously listen for errors
 		if err != nil {
 			s.SaveErrorLog(err)
+			if err.IsPublishable {
+				err.NcMsg.Respond([]byte(err.Msg))
+			}
 		}
 	}
 }

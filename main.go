@@ -18,10 +18,7 @@ func main() {
 	case "SERVER":
 		server.InitServer(cfg)
 	case "CLIENT":
-		err := client.InitClient(cfg)
-		if err != nil {
-			slog.Error("Init Client", "err", err.Error())
-		}
+		client.InitClient(cfg)
 	default:
 		log.Error("Invalid app type")
 	}

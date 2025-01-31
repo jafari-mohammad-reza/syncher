@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/nats-io/nats.go"
 	"log/slog"
 	"os"
 	"path"
@@ -11,17 +12,18 @@ import (
 type Error struct {
 	Msg           string // can be interface{} as well
 	IsPublishable bool
-	ClientId      *string // determine that we should return error to which client if its Publishable and client id not null
+	NcMsg         *nats.Msg // determine that we should return error to which client if its Publishable and client id not null
 }
 type ErrorLog struct {
 	*Error
 	Time time.Time
 }
 
-func NewServerError(msg string, IsPublishable bool) *Error {
+func NewServerError(msg string, IsPublishable bool, ncMsg *nats.Msg) *Error {
 	return &Error{
 		Msg:           msg,
 		IsPublishable: IsPublishable,
+		NcMsg:         ncMsg,
 	}
 }
 func (s *Server) SaveErrorLog(err *Error) {
