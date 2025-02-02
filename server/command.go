@@ -26,8 +26,8 @@ func NewCommandHandler(client *Server) *CommandHandler {
 func (ch *CommandHandler) getUploadLink(cmd *share.ClientCommand) (*share.ServerReply, error) {
 	// here we will create a listener that has an specific link and will be closed automatically after few minutes or after upload completed
 	port := rand.IntN(3999-3000) + 3000
-	ch.server.InitListener(&ClientListener{Port: port, ClientId: cmd.ClientId})
-	fmt.Println("port", port)
+	ch.server.InitListener(&UploadListener{Port: port, ClientId: cmd.ClientId, FileName: fmt.Sprintf("%s_%s", cmd.ClientId, cmd.Args["fileName"])})
+
 	repl := share.ServerReply{
 		Msg:      strconv.Itoa(port),
 		ClientId: cmd.ClientId,

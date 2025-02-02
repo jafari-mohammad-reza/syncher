@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"net"
+	"os"
 	"strconv"
 	"sync_server/share"
 
@@ -22,8 +23,9 @@ type Peer struct {
 	conn    net.Conn
 	msgChan chan Message
 }
-type ClientListener struct {
+type UploadListener struct {
 	ClientId uuid.UUID
+	FileName string
 	Port     int
 }
 type Listener struct {
@@ -33,7 +35,7 @@ type Listener struct {
 	peerChan       chan *Peer
 	quitChan       chan struct{}
 	msgChan        chan Message
-	clientListener *ClientListener
+	uploadListener *UploadListener
 	listeningPort  int
 }
 
@@ -71,21 +73,21 @@ func (p *Peer) Send(msg []byte) error {
 	return nil
 }
 
-func NewListener(cfg *share.Config, clientListener *ClientListener) *Listener {
+func NewListener(cfg *share.Config, clientListener *UploadListener) *Listener {
 	return &Listener{
 		cfg:            cfg,
 		peers:          make(map[*Peer]bool),
 		peerChan:       make(chan *Peer),
 		quitChan:       make(chan struct{}),
 		msgChan:        make(chan Message),
-		clientListener: clientListener,
+		uploadListener: clientListener,
 	}
 }
 
 func (s *Listener) Listen() error {
 	var port int
-	if s.clientListener != nil {
-		port = s.clientListener.Port
+	if s.uploadListener != nil {
+		port = s.uploadListener.Port
 	} else {
 		port, _ = strconv.Atoi(s.cfg.ServerListenAddr)
 	}
@@ -142,7 +144,12 @@ func (s *Listener) handleConn(conn net.Conn) {
 		}
 	}
 	// upload case
-	fmt.Println("recieve conn")
+	go s.handleUpload(conn)
+
+}
+
+func (s *Listener) handleUpload(conn net.Conn) {
+
 	buf := new(bytes.Buffer)
 
 	var size int64
@@ -152,21 +159,22 @@ func (s *Listener) handleConn(conn net.Conn) {
 		log.Fatalf("Failed to read file size: %v", err)
 	}
 	fmt.Println("Size received:", size)
-	n, err := io.CopyN(buf, conn, size)
+	_, err = io.CopyN(buf, conn, size)
 	if err != nil {
 		slog.Error("receive file error", "err", err.Error())
 	}
-	fmt.Println("received", n)
-	fmt.Println("bufff", buf.Bytes())
-
+	err = os.WriteFile(s.uploadListener.FileName, buf.Bytes(), 0655)
+	if err != nil {
+		slog.Error("WriteFile file error", "err", err.Error())
+	}
+	defer s.Stop()
 }
-
 func (s *Listener) handleMsg(msg Message) error {
 	msg.Sender.Send(msg.Msg)
 	return nil
 }
 
-func (s *Server) InitListener(cl *ClientListener) *Listener {
+func (s *Server) InitListener(cl *UploadListener) *Listener {
 	ln := NewListener(s.cfg, cl)
 	go ln.Listen()
 	return ln

@@ -46,7 +46,8 @@ func (ch *CommandHandler) Upload(args []string) {
 	// TODO: apply chunk sending later
 	sbj := fmt.Sprintf("%s-upload", ch.client.info.Server.ID)
 	var paths []string
-	for _, path := range args {
+	fileName := args[0]
+	for _, path := range args[1:] {
 		err := share.CheckFileSize(path, 1000)
 		if err != nil {
 			ch.client.ErrChan <- errors.New(fmt.Sprintf("error checking file size %s: %s", path, err.Error()))
@@ -64,7 +65,7 @@ func (ch *CommandHandler) Upload(args []string) {
 		ch.client.ErrChan <- errors.New(fmt.Sprintf("error CreateArchive: %s", err.Error()))
 		return
 	}
-	cmd := share.NewClientCommand(ch.client.info.ID, nil)
+	cmd := share.NewClientCommand(ch.client.info.ID, map[string]string{"fileName": fmt.Sprintf("%s.tar.gz", fileName)})
 	req, _ := json.Marshal(cmd)
 	msg, err := ch.client.nc.RequestToSubject(sbj, req, time.Second)
 	var repl share.ServerReply
