@@ -2,10 +2,7 @@ package server
 
 import (
 	"fmt"
-	"strings"
 	"sync_server/share"
-
-	"github.com/nats-io/nats.go"
 )
 
 type ICommand interface {
@@ -47,14 +44,8 @@ func (c *UploadCommand) Execute() (interface{}, error) {
 }
 
 // ParseCommand dynamically creates commands from messages
-func parseCommand(msg *nats.Msg) (ICommand, error) {
-	cmd, err := share.ParseClientCommand(msg.Data)
-	names := strings.Split(msg.Subject, "-")
-	if err != nil {
-		return nil, err
-	}
-	name := names[len(names)-1]
-	switch name {
+func parseCommand(msg string, cmd *share.ClientCommand) (ICommand, error) {
+	switch msg {
 	case "health":
 		return &HealthCheckCommand{}, nil
 	case "upload":
@@ -64,6 +55,6 @@ func parseCommand(msg *nats.Msg) (ICommand, error) {
 			},
 		}, nil
 	default:
-		return nil, fmt.Errorf("unknown command: %s", name)
+		return nil, fmt.Errorf("unknown command: %s", msg)
 	}
 }

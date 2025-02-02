@@ -9,9 +9,10 @@ import (
 )
 
 type Config struct {
-	AppType     string `mapstructure:"APP_TYPE"`
-	NatsUrl     string `mapstructure:"NATS_URL"`
-	PostgresUrl string `mapstructure:"POSTGRES_URL"`
+	AppType          string `mapstructure:"APP_TYPE"`
+	NatsUrl          string `mapstructure:"NATS_URL"`
+	PostgresUrl      string `mapstructure:"POSTGRES_URL"`
+	ServerListenAddr string `mapstructure:"SERVER_LISTEN_ADDR"`
 }
 
 func InitConfig(name string) (*Config, error) {

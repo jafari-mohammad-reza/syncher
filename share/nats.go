@@ -2,6 +2,7 @@ package share
 
 import (
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -16,6 +17,7 @@ func NewNatsConn(cfg *Config) *NatsConn {
 	conn, err := nats.Connect(cfg.NatsUrl)
 	if err != nil {
 		slog.Error("Nats connection", "err", err.Error())
+		os.Exit(1)
 	}
 	return &NatsConn{
 		cfg,
