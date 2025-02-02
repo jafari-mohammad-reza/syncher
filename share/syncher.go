@@ -3,10 +3,11 @@ package share
 import (
 	"encoding/json"
 	"errors"
-	"github.com/google/uuid"
 	"log/slog"
 	"os"
 	"path"
+
+	"github.com/google/uuid"
 )
 
 type ServerInfo struct {
@@ -186,4 +187,9 @@ func ParseClientCommand(command []byte) (*ClientCommand, error) {
 		return nil, err
 	}
 	return &cmd, nil
+}
+
+type ServerReply struct {
+	Msg      string
+	ClientId uuid.UUID
 }

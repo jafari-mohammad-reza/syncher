@@ -82,15 +82,22 @@ func CreateArchive(files map[string][]byte) ([]byte, error) {
 }
 
 func CheckFileSize(file string, fileMb int64) error {
-	stat, err := os.Stat(file)
+	size, err := GetSize(file)
 	if err != nil {
 		return err
 	}
-	size := stat.Size()
 	if size > 1024*1024*fileMb {
 		return fmt.Errorf("file %s is too large, it is %d bytes", file, size)
 	}
 	return nil
+}
+
+func GetSize(file string) (int64, error) {
+	stat, err := os.Stat(file)
+	if err != nil {
+		return -1, err
+	}
+	return stat.Size(), nil
 }
 
 func UploadFile(fileName string, file []byte) error {

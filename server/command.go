@@ -2,59 +2,50 @@ package server
 
 import (
 	"fmt"
+	"math/rand/v2"
+	"strconv"
+	"strings"
 	"sync_server/share"
+
+	"github.com/nats-io/nats.go"
 )
 
-type ICommand interface {
-	GetName() string
-	Execute() (interface{}, error)
+type CommandHandler struct {
+	server *Server
+	cmap   map[string]func(cmd *share.ClientCommand) (*share.ServerReply, error)
 }
 
-type Command struct {
-	cmd *share.ClientCommand
-}
-
-type HealthCheckCommand struct {
-	Command
-}
-
-func (c *HealthCheckCommand) GetName() string {
-	return "HealthCheck"
-}
-
-func (c *HealthCheckCommand) Execute() (interface{}, error) {
-	return "healthy", nil
-}
-
-type UploadCommand struct {
-	Command
-}
-
-func (c *UploadCommand) GetName() string {
-	return "Upload"
-}
-
-func (c *UploadCommand) Execute() (interface{}, error) {
-	if len(c.cmd.Args) > 0 {
-		for fileName, fileContent := range c.cmd.Args {
-			share.UploadFile(fmt.Sprintf("%s_%s", c.cmd.ClientId, fileName), fileContent)
-		}
+func NewCommandHandler(client *Server) *CommandHandler {
+	ch := &CommandHandler{
+		server: client,
+		cmap:   make(map[string]func(cmd *share.ClientCommand) (*share.ServerReply, error)),
 	}
-	return "file uploaded", nil
+	ch.cmap["upload"] = ch.getUploadLink
+	return ch
 }
+func (ch *CommandHandler) getUploadLink(cmd *share.ClientCommand) (*share.ServerReply, error) {
+	// here we will create a listener that has an specific link and will be closed automatically after few minutes or after upload completed
+	port := rand.IntN(3999-3000) + 3000
+	ch.server.InitListener(&ClientListener{Port: port, ClientId: cmd.ClientId})
+	fmt.Println("port", port)
+	repl := share.ServerReply{
+		Msg:      strconv.Itoa(port),
+		ClientId: cmd.ClientId,
+	}
+	return &repl, nil
+}
+func (ch *CommandHandler) parseCommand(msg *nats.Msg) (*share.ServerReply, error) {
+	cmd, err := share.ParseClientCommand(msg.Data)
 
-// ParseCommand dynamically creates commands from messages
-func parseCommand(msg string, cmd *share.ClientCommand) (ICommand, error) {
-	switch msg {
-	case "health":
-		return &HealthCheckCommand{}, nil
-	case "upload":
-		return &UploadCommand{
-			Command: Command{
-				cmd: cmd,
-			},
-		}, nil
-	default:
-		return nil, fmt.Errorf("unknown command: %s", msg)
+	names := strings.Split(msg.Subject, "-")
+	if err != nil {
+		return nil, err
+	}
+	name := names[len(names)-1]
+	if handler, exists := ch.cmap[name]; exists {
+		return handler(cmd)
+	} else {
+		return nil, fmt.Errorf("unknown command '%s'", name)
+
 	}
 }
