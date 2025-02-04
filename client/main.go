@@ -36,7 +36,7 @@ func InitClient(cfg *share.Config) {
 		ErrChan,
 		make(chan string),
 		nil,
-		NewSyncher(cfg),
+		NewSyncher(cfg, info),
 	}
 	handler := NewCommandHandler(client)
 	client.commandHandler = handler

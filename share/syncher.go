@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -20,8 +21,20 @@ type ClientInfo struct {
 	Server    *ServerInfo `json:"server"`
 	SharePath []string    `json:"share_paths"`
 }
+type ChangeEvent string
 
-type ChangeLog struct{}
+const (
+	Modify ChangeEvent = "modify"
+	Create ChangeEvent = "create"
+	Delete ChangeEvent = "delete"
+)
+
+type ChangeLog struct {
+	FileName string
+	ClientId uuid.UUID
+	Date     time.Time
+	Event    ChangeEvent
+}
 
 func InitServerSyncherDir() error {
 	homeDir, err := os.UserHomeDir()
