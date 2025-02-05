@@ -1,11 +1,14 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
+	"os"
 	"strconv"
 	"strings"
 	"sync_server/share"
+	"syscall"
 
 	"github.com/nats-io/nats.go"
 )
@@ -21,6 +24,8 @@ func NewCommandHandler(client *Server) *CommandHandler {
 		cmap:   make(map[string]func(cmd *share.ClientCommand) (*share.ServerReply, error)),
 	}
 	ch.cmap["upload"] = ch.getUploadLink
+	ch.cmap["sync"] = ch.syncChange
+	ch.cmap["pull"] = ch.pullChanges
 	return ch
 }
 func (ch *CommandHandler) getUploadLink(cmd *share.ClientCommand) (*share.ServerReply, error) {
@@ -33,6 +38,29 @@ func (ch *CommandHandler) getUploadLink(cmd *share.ClientCommand) (*share.Server
 		ClientId: cmd.ClientId,
 	}
 	return &repl, nil
+}
+
+func (ch *CommandHandler) syncChange(cmd *share.ClientCommand) (*share.ServerReply, error) {
+	file, err := os.OpenFile("/home/yeezus/.syncher/server-changes.json", os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		panic(err)
+	}
+	err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX)
+	if err != nil {
+		panic(err)
+	}
+	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+	defer file.Close()
+	var changes share.ChangeLog
+	json.Unmarshal([]byte(cmd.Args["changes"]), &changes)
+
+	fmt.Println("changes", changes)
+	fmt.Println("file", cmd.Args["data"])
+	return nil, nil
+}
+
+func (ch *CommandHandler) pullChanges(cmd *share.ClientCommand) (*share.ServerReply, error) {
+	return nil, nil
 }
 func (ch *CommandHandler) parseCommand(msg *nats.Msg) (*share.ServerReply, error) {
 	cmd, err := share.ParseClientCommand(msg.Data)

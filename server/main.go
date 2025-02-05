@@ -23,6 +23,8 @@ var server *Server
 
 var subjects = []string{
 	"upload",
+	"pull",
+	"sync",
 	"health",
 	// TODO: new subjects will be added
 }

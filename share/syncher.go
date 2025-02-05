@@ -71,7 +71,7 @@ func InitServerSyncherDir() error {
 		return err
 	}
 
-	changeLogFile := path.Join(ph, "changes.json")
+	changeLogFile := path.Join(ph, "server-changes.json")
 	if _, err := os.Stat(changeLogFile); errors.Is(err, os.ErrNotExist) {
 		if err := os.WriteFile(changeLogFile, []byte("{}"), 0644); err != nil {
 			return err
@@ -181,10 +181,10 @@ func ReadClientInfo() (*ClientInfo, error) {
 type ClientCommand struct {
 	ID       uuid.UUID         `json:"id"`
 	ClientId uuid.UUID         `json:"client_id"`
-	Args     map[string]string `json:"args"`
+	Args     map[string][]byte `json:"args"`
 }
 
-func NewClientCommand(clientId uuid.UUID, args map[string]string) *ClientCommand {
+func NewClientCommand(clientId uuid.UUID, args map[string][]byte) *ClientCommand {
 	return &ClientCommand{
 		ID:       uuid.New(),
 		ClientId: clientId,
