@@ -2,22 +2,45 @@ package share
 
 import (
 	"errors"
-	"log"
-	"log/slog"
-
 	"github.com/spf13/viper"
+	"log"
 )
 
-type Config struct {
-	AppType          string `mapstructure:"APP_TYPE"`
-	NatsUrl          string `mapstructure:"NATS_URL"`
-	PostgresUrl      string `mapstructure:"POSTGRES_URL"`
-	ServerListenAddr string `mapstructure:"SERVER_LISTEN_ADDR"`
+type ServerConfig struct {
+	NatsUrl string `mapstructure:"NATS_URL"`
+}
+type ClientConfig struct {
+	NatsUrl string `mapstructure:"NATS_URL"`
 }
 
-func InitConfig(name string) (*Config, error) {
+func GetServerConfig() (*ServerConfig, error) {
+	v, err := InitConfig("server.yaml")
+	if err != nil {
+		return nil, err
+	}
+	var cfg ServerConfig
+	err = v.Unmarshal(&cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func GetClientConfig() (*ClientConfig, error) {
+	v, err := InitConfig("client.yaml")
+	if err != nil {
+		return nil, err
+	}
+	var cfg ClientConfig
+	err = v.Unmarshal(&cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+func InitConfig(name string) (*viper.Viper, error) {
 	v := viper.New()
-	v.SetConfigType("dotenv")
+	v.SetConfigType("yml")
 	v.SetConfigName(name)
 	v.AddConfigPath(".")
 	v.AutomaticEnv()
@@ -31,12 +54,5 @@ func InitConfig(name string) (*Config, error) {
 		}
 		return nil, err
 	}
-	var cfg Config
-	err = v.Unmarshal(&cfg)
-	if err != nil {
-		slog.Error("Unable to read config: %v", err)
-		return nil, err
-	}
-	return &cfg, nil
-
+	return v, nil
 }

@@ -9,18 +9,16 @@ import (
 )
 
 type NatsConn struct {
-	cfg  *Config
 	conn *nats.Conn
 }
 
-func NewNatsConn(cfg *Config) *NatsConn {
-	conn, err := nats.Connect(cfg.NatsUrl)
+func NewNatsConn(url string) *NatsConn {
+	conn, err := nats.Connect(url)
 	if err != nil {
 		slog.Error("Nats connection", "err", err.Error())
 		os.Exit(1)
 	}
 	return &NatsConn{
-		cfg,
 		conn,
 	}
 }
