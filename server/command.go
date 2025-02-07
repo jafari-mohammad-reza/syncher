@@ -56,7 +56,14 @@ func (ch *CommandHandler) syncChange(cmd *share.ClientCommand) (*share.ServerRep
 
 	fmt.Println("changes", changes)
 	fmt.Println("file", cmd.Args["data"])
-	return nil, nil
+	port := rand.IntN(3999-3000) + 3000
+	ch.server.InitListener(&UploadListener{Port: port, ClientId: cmd.ClientId, FileName: fmt.Sprintf("%s_%s", cmd.ClientId, cmd.Args["fileName"])})
+
+	repl := share.ServerReply{
+		Msg:      strconv.Itoa(port),
+		ClientId: cmd.ClientId,
+	}
+	return &repl, nil
 }
 
 func (ch *CommandHandler) pullChanges(cmd *share.ClientCommand) (*share.ServerReply, error) {

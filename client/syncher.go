@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"strings"
 	"sync_server/share"
 	"time"
 
@@ -65,19 +66,17 @@ func (s *Syncher) saveChange(change *ChangeEvent) {
 	}
 	fmt.Println(changeLog)
 	s.saveChangeLog(changeLog)
+	s.syncChange(changeLog)
+}
+
+func (s *Syncher) syncChange(cl share.ChangeLog) {
+	paths := strings.Split(cl.FileName, "/")
+	fileName := paths[len(paths)-1]
 	sbj := fmt.Sprintf("%s-sync", s.clientInfo.Server.ID)
-	changes, _ := json.Marshal(changeLog)
-	args := map[string][]byte{"changes": changes}
-	if change.Event.Has(fsnotify.Rename) || change.Event.Has(fsnotify.Write) || change.Event.Has(fsnotify.Chmod) || change.Event.Has(fsnotify.Create) {
-		file, _ := os.ReadFile(change.FileName)
-		fmt.Println("FFFFF", file)
-		// todo: if file was over 10mb use upload link
-		args["data"] = file
+	err := uploadFile(sbj, fileName, s.clientInfo.ID, []string{cl.FileName}, s.nc)
+	if err != nil {
+		s.errChan <- err
 	}
-	cmd := share.NewClientCommand(s.clientInfo.ID, args)
-	req, _ := json.Marshal(cmd)
-	msg, err := s.nc.RequestToSubject(sbj, req, time.Second)
-	fmt.Println("mssg", msg, err)
 }
 
 func (s *Syncher) saveChangeLog(changeLog share.ChangeLog) {
