@@ -1,7 +1,6 @@
 package share
 
 import (
-	"github.com/fsnotify/fsnotify"
 	"time"
 )
 
@@ -24,7 +23,7 @@ type ClientRequest struct {
 
 type ChangeRequestChanges struct {
 	FileName    string
-	ChangeEvent fsnotify.Op
+	ChangeEvent string
 }
 type ChangeRequest struct {
 	ClientRequest

@@ -7,10 +7,12 @@ import (
 )
 
 type ServerConfig struct {
-	NatsUrl string `mapstructure:"NATS_URL"`
+	NatsUrl  string `mapstructure:"NATS_URL"`
+	ServerId string
 }
 type ClientConfig struct {
-	NatsUrl string `mapstructure:"NATS_URL"`
+	NatsUrl  string `mapstructure:"NATS_URL"`
+	ClientId string
 }
 
 func GetServerConfig() (*ServerConfig, error) {

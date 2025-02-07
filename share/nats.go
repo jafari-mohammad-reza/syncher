@@ -24,7 +24,7 @@ func NewNatsConn(url string) *NatsConn {
 }
 
 func (nc *NatsConn) SubscribeToSubject(sbj string) (*nats.Subscription, error) {
-	sub, err := nc.conn.SubscribeSync(sbj)
+	sub, err := nc.conn.QueueSubscribeSync(sbj, "servers")
 	if err != nil {
 		slog.Error("NatsConn SubscribeSync", "err", err.Error())
 	}

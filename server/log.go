@@ -62,3 +62,32 @@ func (s *Server) recordLog(log Log) error {
 
 	return nil
 }
+
+type ChangeLogChanges struct {
+	FileName string
+	Change   string
+}
+type ChangeLog struct {
+	ClientId  string
+	ServerId  string
+	ChangeDir string
+	Changes   []ChangeLogChanges
+	Time      time.Time
+}
+
+func recordChange(log ChangeLog) error {
+	logPath := "logs/change.log"
+
+	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+	defer file.Close()
+
+	logMessage := fmt.Sprintf("[%s] clientId: %s - dir: %s - files: %+v - serverId: %s\n", log.Time.Format(time.RFC3339), log.ClientId, log.ChangeDir, log.Changes, log.ServerId)
+	if _, err := file.WriteString(logMessage); err != nil {
+		return fmt.Errorf("failed to write log: %w", err)
+	}
+
+	return nil
+}

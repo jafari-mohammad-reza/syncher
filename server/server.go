@@ -80,6 +80,7 @@ func (s *Server) handleMessage(msg *nats.Msg) {
 			IsPublish: true,
 			Receiver:  msg,
 		}
+		return
 	}
 	response, err := handler(msg)
 	if err != nil {
@@ -97,6 +98,9 @@ func (s *Server) handleMessage(msg *nats.Msg) {
 			IsPublish: true,
 			Receiver:  msg,
 		}
+		return
+	}
+	if msg.Reply == "" {
 		return
 	}
 	err = msg.Respond(resp)
