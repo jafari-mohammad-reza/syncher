@@ -17,6 +17,7 @@ type Server struct {
 	ErrChan        chan Error
 	Subjects       []string
 	NatsConnection *share.NatsConn
+	Handler        *MessageHandler
 }
 
 func NewServer(Cfg *share.ServerConfig) *Server {
@@ -30,6 +31,7 @@ func NewServer(Cfg *share.ServerConfig) *Server {
 			"server-change",
 		},
 		share.NewNatsConn(Cfg.NatsUrl),
+		NewMessageHandler(Cfg),
 	}
 }
 func (s *Server) Start() {
@@ -71,17 +73,13 @@ func (s *Server) handleSubscription(sub *nats.Subscription) {
 
 func (s *Server) handleMessage(msg *nats.Msg) {
 	sbj := msg.Subject
-	handlers := map[string]func(msg *nats.Msg) (*Response, error){
-		"health": Health,
-	}
-	handler, ok := handlers[sbj]
-	if !ok {
+	handler, err := s.Handler.GetHandlerFunc(sbj)
+	if err != nil {
 		s.ErrChan <- Error{
-			ErrorMsg:  fmt.Sprintf("Unknown subject %s", sbj),
+			ErrorMsg:  err.Error(),
 			IsPublish: true,
-			Receiver:  nil,
+			Receiver:  msg,
 		}
-		return
 	}
 	response, err := handler(msg)
 	if err != nil {
