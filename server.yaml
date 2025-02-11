@@ -1,0 +1,6 @@
+NATS_URL: nats://localhost:4222
+MinIO:
+  MINIO_ENDPOINT: localhost:9000
+  MINIO_ACCESS_KEY_ID: admin
+  MINIO_SECRET_ACCESS: password123
+  MINIO_USE_SSL: false

@@ -14,7 +14,7 @@ import (
 )
 
 type Client struct {
-	cfg            *share.Config
+	cfg            *share.ClientConfig
 	info           *share.ClientInfo
 	nc             *share.NatsConn
 	ErrChan        chan error
@@ -25,9 +25,9 @@ type Client struct {
 
 var client *Client
 
-func InitClient(cfg *share.Config) {
+func InitClient(cfg *share.ClientConfig) {
 	info, _ := share.ReadClientInfo()
-	nc := share.NewNatsConn(cfg)
+	nc := share.NewNatsConn(cfg.NatsUrl)
 	ErrChan := make(chan error)
 	client = &Client{
 		cfg,

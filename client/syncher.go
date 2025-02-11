@@ -25,11 +25,11 @@ type Syncher struct {
 	clientInfo *share.ClientInfo
 }
 
-func NewSyncher(cfg *share.Config, clientInfo *share.ClientInfo) *Syncher {
+func NewSyncher(cfg *share.ClientConfig, clientInfo *share.ClientInfo) *Syncher {
 	return &Syncher{
 		make(chan ChangeEvent),
 		make(chan error),
-		share.NewNatsConn(cfg),
+		share.NewNatsConn(cfg.NatsUrl),
 		clientInfo,
 	}
 }
