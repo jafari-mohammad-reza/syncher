@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  nats:
+    image: nats:latest
+    ports:
+      - "4222:4222"
+      - "8222:8222"  # HTTP monitoring port
+    volumes:
+      - ./nats.conf:/var/nats.conf
+    command: ["-c", "/var/nats.conf"]
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"  # S3 API
+      - "9090:9090"  # Web UI
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+    command: ["server", "/data", "--console-address", ":9090"]
+
+  server1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - ./logs/server1/:/app/logs/
+  
+  server2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - ./logs/server2/:/app/logs/
+volumes:
+  minio_data:
