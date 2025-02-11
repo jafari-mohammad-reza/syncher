@@ -22,20 +22,13 @@ services:
       MINIO_ROOT_PASSWORD: password123
     command: ["server", "/data", "--console-address", ":9090"]
 
-  server1:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - .:/app
-      - ./logs/server1/:/app/logs/
-  
-  server2:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - .:/app
-      - ./logs/server2/:/app/logs/
+  # server1:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   volumes:
+  #     - .:/app
+  #     - ./logs/server1/:/app/logs/
+
 volumes:
   minio_data:

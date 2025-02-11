@@ -12,12 +12,14 @@ import (
 type MessageHandler struct {
 	Cfg            *share.ServerConfig
 	NatsConnection *share.NatsConn
+	ReceiverService *ReceiverService
 }
 
 func NewMessageHandler(cfg *share.ServerConfig) *MessageHandler {
 	return &MessageHandler{
 		Cfg:            cfg,
 		NatsConnection: share.NewNatsConn(cfg.NatsUrl),
+		ReceiverService: NewReceiverService(cfg),
 	}
 }
 
@@ -56,7 +58,7 @@ func (m *MessageHandler) Change(msg *nats.Msg) (*share.ServerResponse, error) {
 			continue
 		}
 		port := rand.IntN(1000) + 1000
-		err := InitReceiver(port, fmt.Sprintf("%s/%s/%s", req.ClientId, req.Dir, change.FileName))
+		err := m.ReceiverService.InitReceiver(port, fmt.Sprintf("%s/%s/%s", req.ClientId, req.Dir, change.FileName))
 		if err != nil {
 			return nil, err
 		}

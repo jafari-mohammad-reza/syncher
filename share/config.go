@@ -6,9 +6,16 @@ import (
 	"log"
 )
 
+type MinIO struct {
+	Endpoint        string `mapstructure:"MINIO_ENDPOINT"`
+	AccessKeyID     string `mapstructure:"MINIO_ACCESS_KEY_ID"`
+	SecretAccessKey string `mapstructure:"MINIO_SECRET_ACCESS`
+	UseSSL          bool   `mapstructure:"MINIO_USE_SSL"`
+}
 type ServerConfig struct {
 	NatsUrl  string `mapstructure:"NATS_URL"`
 	ServerId string
+	MinIO
 }
 type ClientConfig struct {
 	NatsUrl  string `mapstructure:"NATS_URL"`
