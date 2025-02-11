@@ -1,7 +1,7 @@
 package client
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
 	"sync_server/share"
 )
@@ -19,9 +19,9 @@ func (h *HttpListener) Listen() error {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`client`))
 	})
-	fmt.Println("Listening on port:", h.Cfg.HttpPort)
+	slog.Info("Client http listening on", "port", h.Cfg.HttpPort)
 	if err := http.ListenAndServe(":"+h.Cfg.HttpPort, nil); err != nil {
-		fmt.Println("Server error:", err)
+		slog.Error("Client http listening", "Err", err)
 	}
 	return nil
 }

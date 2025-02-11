@@ -1,9 +1,9 @@
 package client
 
 import (
-	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"log/slog"
+	"path/filepath"
 	"sync_server/share"
 	"time"
 )
@@ -24,7 +24,7 @@ func NewClient(cfg *share.ClientConfig) *Client {
 	}
 }
 func (c *Client) Start() error {
-	fmt.Println("client listening")
+	slog.Info("Client start")
 	go func() {
 		c.ErrChan <- c.HttpListener.Listen()
 	}()
@@ -58,12 +58,15 @@ func (c *Client) Sync() {
 				return
 			}
 			if event.Has(fsnotify.Write) || event.Has(fsnotify.Rename) || event.Has(fsnotify.Create) || event.Has(fsnotify.Remove) {
+				parentDir := filepath.Dir(event.Name)
+				fileName := filepath.Base(event.Name)
+
 				c.SyncService.ChangeChan <- ChangeEvent{
 					File: share.ChangeRequestChanges{
-						FileName:    event.Name,
+						FileName:    fileName,
 						ChangeEvent: event.Op.String(),
 					},
-					Dir:  "/home/yeezus/Downloads",
+					Dir:  parentDir,
 					Time: time.Now(),
 				}
 			}

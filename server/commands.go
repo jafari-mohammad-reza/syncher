@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/nats-io/nats.go"
 	"math/rand/v2"
+	"strings"
 	"sync_server/share"
 	"time"
 )
@@ -43,6 +44,12 @@ func (m *MessageHandler) Health(msg *nats.Msg) (*share.ServerResponse, error) {
 	}, nil
 }
 
+const (
+	minPort = 3000
+	maxPort = 8000
+	retries = 10
+)
+
 func (m *MessageHandler) Change(msg *nats.Msg) (*share.ServerResponse, error) {
 	var req share.ChangeRequest
 	err := json.Unmarshal(msg.Data, &req)
@@ -51,16 +58,27 @@ func (m *MessageHandler) Change(msg *nats.Msg) (*share.ServerResponse, error) {
 	}
 	res := make(share.ChangeResponse, len(req.Changes))
 	for _, change := range req.Changes {
-		// if change was create or modify we create a receiver if its delete we remove the file
-		if change.ChangeEvent == "delete" {
+		if change.ChangeEvent == "REMOVE" {
 			// TODO: remove file
 			continue
 		}
-		port := rand.IntN(2000) + 2000
-		err := m.ReceiverService.InitReceiver(port, fmt.Sprintf("%s/%s/%s", req.ClientId, req.Dir, change.FileName))
-		if err != nil {
-			return nil, err
+		var port int
+		for attempt := 0; attempt < retries; attempt++ {
+			port = rand.IntN(maxPort-minPort) + minPort
+			err := m.ReceiverService.InitReceiver(port, fmt.Sprintf("%s%s/%s", req.ClientId, req.Dir, change.FileName))
+
+			if err == nil {
+				break
+			}
+			if !strings.Contains(err.Error(), "address already in use") {
+				return nil, err
+			}
+
+			if attempt == retries-1 {
+				return nil, fmt.Errorf("failed to find an available port after %d attempts", retries)
+			}
 		}
+
 		res[change.FileName] = port
 	}
 	resBytes, err := json.Marshal(res)

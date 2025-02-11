@@ -2,7 +2,6 @@ package share
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -24,12 +23,10 @@ func NewMinIoService(cfg *ServerConfig) *MinIOService {
 }
 
 func (m *MinIOService) init() {
-	fmt.Println("init miniostorage")
 	minioClient, err := minio.New(m.Cfg.Endpoint, m.Cfg.MinIO.AccessKeyID, m.Cfg.MinIO.SecretAccessKey, m.Cfg.MinIO.UseSSL)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println("✅ Successfully connected to MinIO")
 	m.client = minioClient
 }
 
