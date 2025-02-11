@@ -1,13 +1,8 @@
 package share
 
 import (
-	"archive/tar"
-	"bytes"
-	"compress/gzip"
 	"fmt"
 	"os"
-	"path"
-	"path/filepath"
 )
 
 func GetFilesByte(files []string) (map[string][]byte, error) {
@@ -59,49 +54,10 @@ func getFileBytes(file string) ([]byte, error) {
 	return data, nil
 }
 
-func CreateArchive(files map[string][]byte) ([]byte, error) {
-	var buf bytes.Buffer
-	gzWriter := gzip.NewWriter(&buf)
-	tw := tar.NewWriter(gzWriter)
-	for filename, content := range files {
-		hdr := &tar.Header{
-			Name: filepath.Base(filename),
-			Size: int64(len(content)),
-			Mode: 0644,
-		}
-		if err := tw.WriteHeader(hdr); err != nil {
-			return nil, err
-		}
-		if _, err := tw.Write(content); err != nil {
-			return nil, err
-		}
-	}
-	tw.Close()
-	gzWriter.Close()
-	return buf.Bytes(), nil
-}
-
-func CheckFileSize(file string, fileMb int64) error {
-	size, err := GetSize(file)
-	if err != nil {
-		return err
-	}
-	if size > 1024*1024*fileMb {
-		return fmt.Errorf("file %s is too large, it is %d bytes", file, size)
-	}
-	return nil
-}
-
 func GetSize(file string) (int64, error) {
 	stat, err := os.Stat(file)
 	if err != nil {
 		return -1, err
 	}
 	return stat.Size(), nil
-}
-
-func UploadFile(fileName string, file []byte) error {
-	homeDir, _ := os.UserHomeDir()
-	ph := path.Join(homeDir, ".syncher", "uploads", fileName)
-	return os.WriteFile(ph, file, 0644)
 }

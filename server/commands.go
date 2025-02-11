@@ -10,15 +10,15 @@ import (
 )
 
 type MessageHandler struct {
-	Cfg            *share.ServerConfig
-	NatsConnection *share.NatsConn
+	Cfg             *share.ServerConfig
+	NatsConnection  *share.NatsConn
 	ReceiverService *ReceiverService
 }
 
 func NewMessageHandler(cfg *share.ServerConfig) *MessageHandler {
 	return &MessageHandler{
-		Cfg:            cfg,
-		NatsConnection: share.NewNatsConn(cfg.NatsUrl),
+		Cfg:             cfg,
+		NatsConnection:  share.NewNatsConn(cfg.NatsUrl),
 		ReceiverService: NewReceiverService(cfg),
 	}
 }
@@ -39,13 +39,12 @@ func (m *MessageHandler) GetHandlerFunc(sbj string) (func(msg *nats.Msg) (*share
 func (m *MessageHandler) Health(msg *nats.Msg) (*share.ServerResponse, error) {
 	return &share.ServerResponse{
 		Status: share.Success,
-		Data:   []byte("healthy"),
+		Data:   "healthy",
 	}, nil
 }
 
 func (m *MessageHandler) Change(msg *nats.Msg) (*share.ServerResponse, error) {
 	var req share.ChangeRequest
-
 	err := json.Unmarshal(msg.Data, &req)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing change request %s", err.Error())
@@ -57,7 +56,7 @@ func (m *MessageHandler) Change(msg *nats.Msg) (*share.ServerResponse, error) {
 			// TODO: remove file
 			continue
 		}
-		port := rand.IntN(1000) + 1000
+		port := rand.IntN(2000) + 2000
 		err := m.ReceiverService.InitReceiver(port, fmt.Sprintf("%s/%s/%s", req.ClientId, req.Dir, change.FileName))
 		if err != nil {
 			return nil, err
@@ -71,7 +70,7 @@ func (m *MessageHandler) Change(msg *nats.Msg) (*share.ServerResponse, error) {
 	}
 	return &share.ServerResponse{
 		Status: share.Success,
-		Data:   resBytes,
+		Data:   string(resBytes),
 	}, nil
 }
 func (m *MessageHandler) ServerChange(msg *nats.Msg) (*share.ServerResponse, error) {
@@ -88,7 +87,7 @@ func (m *MessageHandler) ServerChange(msg *nats.Msg) (*share.ServerResponse, err
 	}
 	return &share.ServerResponse{
 		Status: share.Success,
-		Data:   []byte("change applied"),
+		Data:   "change applied",
 	}, nil
 }
 

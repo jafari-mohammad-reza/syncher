@@ -18,8 +18,11 @@ type ServerConfig struct {
 	MinIO
 }
 type ClientConfig struct {
-	NatsUrl  string `mapstructure:"NATS_URL"`
-	ClientId string
+	NatsUrl      string `mapstructure:"NATS_URL"`
+	ClientId     string
+	HttpPort     string   `mapstructure:"HTTP_PORT"`
+	SyncDirs     []string `mapstructure:"SYNC_DIRS"`
+	SyncInterval int      `mapstructure:"SYNC_INTERVAL"`
 }
 
 func GetServerConfig() (*ServerConfig, error) {

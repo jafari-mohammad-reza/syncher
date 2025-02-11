@@ -13,7 +13,7 @@ const (
 
 type ServerResponse struct {
 	Status ResponseStatus
-	Data   []byte
+	Data   string `json:"data"`
 }
 
 type ClientRequest struct {
