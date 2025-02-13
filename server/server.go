@@ -118,10 +118,15 @@ func (s *Server) handleError() {
 	for err := range s.ErrChan {
 		s.error(err)
 		if err.IsPublish {
-			err := err.Receiver.Respond([]byte(err.ErrorMsg))
-			if err != nil {
+			resp := share.ServerResponse{
+				Status: share.Failure,
+				Data:   err.ErrorMsg,
+			}
+			respJson, parseErr := json.Marshal(resp)
+			err.Receiver.Respond(respJson)
+			if parseErr != nil {
 				s.ErrChan <- Error{
-					ErrorMsg:  err.Error(),
+					ErrorMsg:  parseErr.Error(),
 					IsPublish: false,
 					Receiver:  nil,
 				}
