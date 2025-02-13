@@ -46,6 +46,7 @@ func (s *SyncService) Listen() {
 		case <-ticker.C:
 
 			go s.syncChanges()
+			go s.retrieveChanges()
 		case <-s.done:
 
 			fmt.Println("Shutting down SyncService...")
@@ -58,6 +59,10 @@ func (s *SyncService) Listen() {
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
+}
+func (s *SyncService) retrieveChanges() {
+	slog.Info("Retrieve changes")
+
 }
 func (s *SyncService) syncChanges() {
 	slog.Info("Syncing changes", "items in channel", len(s.ChangeChan))

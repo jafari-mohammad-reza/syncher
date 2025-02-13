@@ -18,7 +18,7 @@ type ReceiverService struct {
 		sync.Mutex
 		Transfers map[int]string
 	}
-	MinIOService *share.MinIOService
+	fileStorage FileStorage
 }
 
 func NewReceiverService(Cfg *share.ServerConfig) *ReceiverService {
@@ -26,11 +26,11 @@ func NewReceiverService(Cfg *share.ServerConfig) *ReceiverService {
 		sync.Mutex
 		Transfers map[int]string
 	}{Transfers: make(map[int]string)}
-	MinIOService := share.NewMinIoService(Cfg)
+	fileStorage := NewMinIoService(Cfg)
 	return &ReceiverService{
 		Cfg,
 		ActiveTransfers,
-		MinIOService,
+		fileStorage,
 	}
 }
 
@@ -89,7 +89,7 @@ func (r *ReceiverService) handleUpload(conn net.Conn, fileName string) error {
 		slog.Error("File reception error", "err", err)
 		return err
 	}
-	err = r.MinIOService.Upload(context.Background(), fileName, buf, size)
+	err = r.fileStorage.Upload(context.Background(), fileName, buf, size)
 	if err != nil {
 		slog.Error("Failed to save file", "err", err)
 		return err

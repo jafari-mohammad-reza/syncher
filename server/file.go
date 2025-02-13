@@ -1,36 +1,43 @@
-package share
+package server
 
 import (
 	"context"
 	"io"
-	"log"
 	"log/slog"
+	"sync_server/share"
 
 	"github.com/minio/minio-go"
 )
 
-type MinIOService struct {
-	Cfg    *ServerConfig
+type FileStorage interface {
+	Init() error
+	Upload(ctx context.Context, fileName string, reader io.Reader, size int64) error
+	UploadPath(ctx context.Context, fileName string, filePath string) error
+}
+
+type MiniOStorage struct {
+	Cfg    *share.ServerConfig
 	client *minio.Client
 }
 
-func NewMinIoService(cfg *ServerConfig) *MinIOService {
-	server := &MinIOService{
+func NewMinIoService(cfg *share.ServerConfig) *MiniOStorage {
+	server := &MiniOStorage{
 		Cfg: cfg,
 	}
-	server.init()
+	server.Init()
 	return server
 }
 
-func (m *MinIOService) init() {
+func (m *MiniOStorage) Init() error {
 	minioClient, err := minio.New(m.Cfg.Endpoint, m.Cfg.MinIO.AccessKeyID, m.Cfg.MinIO.SecretAccessKey, m.Cfg.MinIO.UseSSL)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	m.client = minioClient
+	return nil
 }
 
-func (m *MinIOService) Upload(ctx context.Context, fileName string, reader io.Reader, size int64) error {
+func (m *MiniOStorage) Upload(ctx context.Context, fileName string, reader io.Reader, size int64) error {
 	slog.Info("Uploading file", "filename", fileName)
 	_, err := m.client.PutObjectWithContext(ctx, "syncher", fileName, reader, size, minio.PutObjectOptions{})
 	if err != nil {
@@ -39,7 +46,7 @@ func (m *MinIOService) Upload(ctx context.Context, fileName string, reader io.Re
 	return nil
 }
 
-func (m *MinIOService) UploadPath(ctx context.Context, fileName string, filePath string) error {
+func (m *MiniOStorage) UploadPath(ctx context.Context, fileName string, filePath string) error {
 	slog.Info("Uploading file", "filename", fileName, "filePath", filePath)
 	_, err := m.client.FPutObjectWithContext(ctx, "syncher", fileName, filePath, minio.PutObjectOptions{})
 	if err != nil {

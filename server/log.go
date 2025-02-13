@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -64,19 +65,20 @@ func (s *Server) recordLog(log Log) error {
 }
 
 type ChangeLogChanges struct {
-	FileName string
-	Change   string
-}
-type ChangeLog struct {
-	ClientId  string
-	ServerId  string
-	ChangeDir string
-	Changes   []ChangeLogChanges
-	Time      time.Time
+	FileName string `json:"file_name"`
+	Change   string `json:"change"`
 }
 
-func recordChange(log ChangeLog) error {
-	logPath := "logs/change.log"
+type ChangeLog struct {
+	ClientId  string             `json:"client_id"`
+	ServerId  string             `json:"server_id"`
+	ChangeDir string             `json:"change_dir"`
+	Changes   []ChangeLogChanges `json:"changes"`
+	Time      time.Time          `json:"time"`
+}
+
+func recordChangeLog(log ChangeLog) error {
+	logPath := "logs/change.json"
 
 	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -84,7 +86,12 @@ func recordChange(log ChangeLog) error {
 	}
 	defer file.Close()
 
-	logMessage := fmt.Sprintf("[%s] clientId: %s - dir: %s - files: %+v - serverId: %s\n", log.Time.Format(time.RFC3339), log.ClientId, log.ChangeDir, log.Changes, log.ServerId)
+	jsonData, err := json.Marshal(log)
+	if err != nil {
+		return fmt.Errorf("failed to marshal log: %w", err)
+	}
+
+	logMessage := string(jsonData) + "\n"
 	if _, err := file.WriteString(logMessage); err != nil {
 		return fmt.Errorf("failed to write log: %w", err)
 	}

@@ -31,3 +31,10 @@ type ChangeRequest struct {
 	Changes []ChangeRequestChanges
 }
 type ChangeResponse map[string]int
+type SyncResponseItem struct {
+	Dir     string
+	Changes []ChangeRequestChanges
+}
+type SyncResponse struct {
+	Changes []SyncResponseItem
+}

@@ -3,17 +3,19 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nats-io/nats.go"
 	"math/rand/v2"
 	"strings"
 	"sync_server/share"
 	"time"
+
+	"github.com/nats-io/nats.go"
 )
 
 type MessageHandler struct {
 	Cfg             *share.ServerConfig
 	NatsConnection  *share.NatsConn
 	ReceiverService *ReceiverService
+	ChangeStorage   Storage
 }
 
 func NewMessageHandler(cfg *share.ServerConfig) *MessageHandler {
@@ -21,6 +23,7 @@ func NewMessageHandler(cfg *share.ServerConfig) *MessageHandler {
 		Cfg:             cfg,
 		NatsConnection:  share.NewNatsConn(cfg.NatsUrl),
 		ReceiverService: NewReceiverService(cfg),
+		ChangeStorage:   NewChangeStorage(),
 	}
 }
 
@@ -29,6 +32,7 @@ func (m *MessageHandler) GetHandlerFunc(sbj string) (func(msg *nats.Msg) (*share
 		"health":        m.Health,
 		"change":        m.Change,
 		"server-change": m.ServerChange,
+		"sync":          m.Sync,
 	}
 	handler, ok := handlers[sbj]
 	if !ok {
@@ -98,7 +102,7 @@ func (m *MessageHandler) ServerChange(msg *nats.Msg) (*share.ServerResponse, err
 		return nil, fmt.Errorf("error parsing change log %s", err.Error())
 	}
 	if log.ServerId != m.Cfg.ServerId {
-		err := recordChange(log)
+		err := recordChangeLog(log)
 		if err != nil {
 			return nil, err
 		}
@@ -124,14 +128,43 @@ func (m *MessageHandler) recordServerChange(req share.ChangeRequest) error {
 		Changes:   changes,
 		Time:      time.Now(),
 	}
-	err := recordChange(changeLog)
+	err := recordChangeLog(changeLog)
 	if err != nil {
 		return err
 	}
 	log, _ := json.Marshal(changeLog)
+	m.ChangeStorage.Set(req.ClientId, log)
 	err = m.NatsConnection.PublishToSubject("server-change", log)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (m *MessageHandler) Sync(msg *nats.Msg) (*share.ServerResponse, error) {
+	var req share.ClientRequest
+	err := json.Unmarshal(msg.Data, &req)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing sync request %s", err.Error())
+	}
+	var res share.SyncResponse
+	var changes []ChangeLog
+	clientChanges, err := m.ChangeStorage.Get(req.ClientId)
+	err = json.Unmarshal(*clientChanges, &changes)
+	changemap := map[string][]share.ChangeRequestChanges{}
+	for _, ch := range changes {
+		respChanges := []share.ChangeRequestChanges{}
+		for _, a := range ch.Changes {
+			respChanges = append(respChanges, share.ChangeRequestChanges{
+				FileName:    a.FileName,
+				ChangeEvent: a.Change,
+			})
+		}
+		changemap[ch.ChangeDir] = append(changemap[ch.ChangeDir], respChanges...)
+	}
+	resBytes, _ := json.Marshal(res)
+	return &share.ServerResponse{
+		Status: share.Success,
+		Data:   string(resBytes),
+	}, nil
 }
