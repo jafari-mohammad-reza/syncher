@@ -1,13 +1,15 @@
 package main
 
 import (
-	"github.com/google/uuid"
 	"sync_server/client"
 	"sync_server/share"
+
+	"github.com/google/uuid"
 )
 
 func main() {
 	id, _ := uuid.NewUUID()
+	share.InitClientConfig()
 	cfg, err := share.GetClientConfig()
 	if err != nil {
 		panic(err)

@@ -1,16 +1,17 @@
 package client
 
 import (
-	"github.com/fsnotify/fsnotify"
 	"log/slog"
 	"path/filepath"
 	"sync_server/share"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 type Client struct {
 	Cfg          *share.ClientConfig
-	HttpListener *HttpListener
+	HttpListener *HttpServer
 	SyncService  *SyncService
 	ErrChan      chan error
 }

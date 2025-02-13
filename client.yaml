@@ -1,5 +1,5 @@
-NATS_URL: nats://localhost:4222
-HTTP_PORT: 1090
-SYNC_INTERVAL: 100
-SYNC_DIRS:
-  - /home/yeezus/Downloads
+http_port: 1090
+nats_url: nats://localhost:4222
+sync_dirs:
+    - /home/yeezus/Downloads
+sync_interval: 100

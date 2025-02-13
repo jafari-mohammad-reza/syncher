@@ -2,8 +2,9 @@ package share
 
 import (
 	"errors"
-	"github.com/spf13/viper"
 	"log"
+
+	"github.com/spf13/viper"
 )
 
 type MinIO struct {
@@ -38,17 +39,25 @@ func GetServerConfig() (*ServerConfig, error) {
 	return &cfg, nil
 }
 
-func GetClientConfig() (*ClientConfig, error) {
+var clientViper *viper.Viper
+
+func InitClientConfig() {
 	v, err := InitConfig("client.yaml")
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
+	clientViper = v
+}
+func GetClientConfig() (*ClientConfig, error) {
 	var cfg ClientConfig
-	err = v.Unmarshal(&cfg)
+	err := clientViper.Unmarshal(&cfg)
 	if err != nil {
 		return nil, err
 	}
 	return &cfg, nil
+}
+func WriteClientConfig() {
+	clientViper.WriteConfig()
 }
 func InitConfig(name string) (*viper.Viper, error) {
 	v := viper.New()
