@@ -16,6 +16,7 @@ type MessageHandler struct {
 	NatsConnection  *share.NatsConn
 	ReceiverService *ReceiverService
 	ChangeStorage   Storage
+	fileStorage     FileStorage
 }
 
 func NewMessageHandler(cfg *share.ServerConfig) *MessageHandler {
@@ -24,6 +25,7 @@ func NewMessageHandler(cfg *share.ServerConfig) *MessageHandler {
 		NatsConnection:  share.NewNatsConn(cfg.NatsUrl),
 		ReceiverService: NewReceiverService(cfg),
 		ChangeStorage:   NewChangeStorage(),
+		fileStorage:     NewMinIoService(cfg),
 	}
 }
 
@@ -64,12 +66,17 @@ func (m *MessageHandler) Change(msg *nats.Msg) (*share.ServerResponse, error) {
 	for _, change := range req.Changes {
 		if change.ChangeEvent == "REMOVE" {
 			// TODO: remove file
+			err := m.fileStorage.RemoveFile(fmt.Sprintf("%s%s/%s", req.ClientId, req.Dir, change.FileName))
+			if err != nil {
+				return nil, fmt.Errorf("error removing file %s", change.FileName)
+			}
 			continue
 		}
 		var port int
 		for attempt := 0; attempt < retries; attempt++ {
 			port = rand.IntN(maxPort-minPort) + minPort
-			err := m.ReceiverService.InitReceiver(port, fmt.Sprintf("%s%s/%s", req.ClientId, req.Dir, change.FileName))
+			reciever := NewReceiverService(m.Cfg)
+			err := reciever.InitReceiver(port, fmt.Sprintf("%s%s/%s", req.ClientId, req.Dir, change.FileName))
 
 			if err == nil {
 				break

@@ -78,22 +78,27 @@ type ChangeLog struct {
 }
 
 func recordChangeLog(log ChangeLog) error {
-	logPath := "logs/change.json"
+	logPath := "logs/changes.json"
 
-	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to open log file: %w", err)
+	var logs []ChangeLog
+	file, err := os.ReadFile(logPath)
+	if err == nil {
+		if len(file) > 0 {
+			if err := json.Unmarshal(file, &logs); err != nil {
+				return fmt.Errorf("failed to unmarshal existing logs: %w", err)
+			}
+		}
 	}
-	defer file.Close()
 
-	jsonData, err := json.Marshal(log)
+	logs = append(logs, log)
+
+	newData, err := json.MarshalIndent(logs, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal log: %w", err)
+		return fmt.Errorf("failed to marshal logs: %w", err)
 	}
 
-	logMessage := string(jsonData) + "\n"
-	if _, err := file.WriteString(logMessage); err != nil {
-		return fmt.Errorf("failed to write log: %w", err)
+	if err := os.WriteFile(logPath, newData, 0644); err != nil {
+		return fmt.Errorf("failed to write log file: %w", err)
 	}
 
 	return nil

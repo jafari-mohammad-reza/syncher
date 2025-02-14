@@ -122,15 +122,10 @@ func (s *SyncService) syncChanges() {
 					continue
 				}
 
-				// Process change responses
 				for fileName, port := range changeRes {
-					fmt.Println("change-res", fileName, port)
-					for _, ch := range req.Changes {
-						if fileName == ch.FileName {
-							fmt.Println("change file upload port", ch.FileName, port)
-
-							// Directly fetch the parent directory from dirMap
-							if parentDir, exists := dirMap[ch.FileName]; exists {
+					for parentDir, changes := range dirMap {
+						for _, change := range changes {
+							if change.FileName == fileName {
 								go s.uploadFile(fmt.Sprintf("%s/%s", parentDir, fileName), port)
 							}
 						}

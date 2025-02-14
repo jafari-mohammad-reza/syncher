@@ -13,6 +13,7 @@ type FileStorage interface {
 	Init() error
 	Upload(ctx context.Context, fileName string, reader io.Reader, size int64) error
 	UploadPath(ctx context.Context, fileName string, filePath string) error
+	RemoveFile(fileName string) error
 }
 
 type MiniOStorage struct {
@@ -49,6 +50,14 @@ func (m *MiniOStorage) Upload(ctx context.Context, fileName string, reader io.Re
 func (m *MiniOStorage) UploadPath(ctx context.Context, fileName string, filePath string) error {
 	slog.Info("Uploading file", "filename", fileName, "filePath", filePath)
 	_, err := m.client.FPutObjectWithContext(ctx, "syncher", fileName, filePath, minio.PutObjectOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (m *MiniOStorage) RemoveFile(fileName string) error {
+	slog.Info("Removing file", "filename", fileName)
+	err := m.client.RemoveObject("syncher", fileName)
 	if err != nil {
 		return err
 	}
