@@ -2,4 +2,5 @@ http_port: 1090
 nats_url: nats://localhost:4222
 sync_dirs:
     - /home/yeezus/Downloads
-sync_interval: 100
+sync_interval: 2
+client_id: 48ec7980-ebc4-11ef-8d8b-00155dc4c4e3

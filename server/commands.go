@@ -12,20 +12,22 @@ import (
 )
 
 type MessageHandler struct {
-	Cfg             *share.ServerConfig
-	NatsConnection  *share.NatsConn
-	ReceiverService *ReceiverService
-	ChangeStorage   Storage
-	fileStorage     FileStorage
+	Cfg               *share.ServerConfig
+	NatsConnection    *share.NatsConn
+	ReceiverService   *ReceiverService
+	DownloaderService *DownloaderService
+	ChangeStorage     Storage
+	fileStorage       FileStorage
 }
 
 func NewMessageHandler(cfg *share.ServerConfig) *MessageHandler {
 	return &MessageHandler{
-		Cfg:             cfg,
-		NatsConnection:  share.NewNatsConn(cfg.NatsUrl),
-		ReceiverService: NewReceiverService(cfg),
-		ChangeStorage:   NewChangeStorage(),
-		fileStorage:     NewMinIoService(cfg),
+		Cfg:               cfg,
+		NatsConnection:    share.NewNatsConn(cfg.NatsUrl),
+		ReceiverService:   NewReceiverService(cfg),
+		DownloaderService: NewDownloaderService(cfg),
+		ChangeStorage:     NewChangeStorage(),
+		fileStorage:       NewMinIoService(cfg),
 	}
 }
 
@@ -35,12 +37,46 @@ func (m *MessageHandler) GetHandlerFunc(sbj string) (func(msg *nats.Msg) (*share
 		"change":        m.Change,
 		"server-change": m.ServerChange,
 		"sync":          m.Sync,
+		"download-file": m.DownloadFile,
 	}
 	handler, ok := handlers[sbj]
 	if !ok {
 		return nil, fmt.Errorf("unknown subject %s", sbj)
 	}
 	return handler, nil
+}
+
+func (m *MessageHandler) DownloadFile(msg *nats.Msg) (*share.ServerResponse, error) {
+	var req share.DownloadRequest
+	err := json.Unmarshal(msg.Data, &req)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing download request %s", err.Error())
+	}
+	var port int
+	for attempt := 0; attempt < retries; attempt++ {
+		port = rand.IntN(maxPort-minPort) + minPort
+		err := m.DownloaderService.InitDownloader(port, req.FilePath)
+
+		if err == nil {
+			break
+		}
+		if !strings.Contains(err.Error(), "address already in use") {
+			return nil, err
+		}
+
+		if attempt == retries-1 {
+			return nil, fmt.Errorf("failed to find an available port after %d attempts", retries)
+		}
+	}
+	res := share.DownloadResponse{
+
+		Port: port,
+	}
+	resBytes, err := json.Marshal(res)
+	return &share.ServerResponse{
+		Status: share.Success,
+		Data:   string(resBytes),
+	}, nil
 }
 
 func (m *MessageHandler) Health(msg *nats.Msg) (*share.ServerResponse, error) {
@@ -125,6 +161,7 @@ func (m *MessageHandler) recordServerChange(req share.ChangeRequest) error {
 		changes = append(changes, ChangeLogChanges{
 			FileName: change.FileName,
 			Change:   change.ChangeEvent,
+			Agent:    req.Agent,
 		})
 	}
 	changeLog := ChangeLog{
@@ -158,13 +195,14 @@ func (m *MessageHandler) Sync(msg *nats.Msg) (*share.ServerResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error fetching client changes %s", err.Error())
 	}
-	changemap := map[string][]share.ChangeRequestChanges{}
+	changemap := map[string][]share.ChangeRequestChange{}
 	for _, ch := range clientChanges.([]ChangeLog) {
-		respChanges := []share.ChangeRequestChanges{}
+		respChanges := []share.ChangeRequestChange{}
 		for _, a := range ch.Changes {
-			respChanges = append(respChanges, share.ChangeRequestChanges{
+			respChanges = append(respChanges, share.ChangeRequestChange{
 				FileName:    a.FileName,
 				ChangeEvent: a.Change,
+				Agent:       a.Agent,
 			})
 		}
 		changemap[ch.ChangeDir] = append(changemap[ch.ChangeDir], respChanges...)

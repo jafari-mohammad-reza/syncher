@@ -14,6 +14,7 @@ type FileStorage interface {
 	Upload(ctx context.Context, fileName string, reader io.Reader, size int64) error
 	UploadPath(ctx context.Context, fileName string, filePath string) error
 	RemoveFile(fileName string) error
+	Download(ctx context.Context, fileName string) (io.ReadCloser, error)
 }
 
 type MiniOStorage struct {
@@ -62,4 +63,8 @@ func (m *MiniOStorage) RemoveFile(fileName string) error {
 		return err
 	}
 	return nil
+}
+
+func (m *MiniOStorage) Download(ctx context.Context, fileName string) (io.ReadCloser, error) {
+	return m.client.GetObjectWithContext(ctx, "syncher", fileName, minio.GetObjectOptions{})
 }

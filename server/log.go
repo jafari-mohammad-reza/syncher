@@ -67,6 +67,7 @@ func (s *Server) recordLog(log Log) error {
 type ChangeLogChanges struct {
 	FileName string `json:"file_name"`
 	Change   string `json:"change"`
+	Agent string
 }
 
 type ChangeLog struct {

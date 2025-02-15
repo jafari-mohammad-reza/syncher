@@ -9,13 +9,14 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"runtime"
 	"sync_server/share"
 	"time"
 )
 
 type ChangeEvent struct {
 	Dir  string
-	File share.ChangeRequestChanges
+	File share.ChangeRequestChange
 	Time time.Time
 }
 
@@ -44,11 +45,9 @@ func (s *SyncService) Listen() {
 	for {
 		select {
 		case <-ticker.C:
-
 			go s.syncChanges()
 			go s.retrieveChanges()
 		case <-s.done:
-
 			fmt.Println("Shutting down SyncService...")
 			return
 		default:
@@ -62,16 +61,79 @@ func (s *SyncService) Listen() {
 }
 func (s *SyncService) retrieveChanges() {
 	slog.Info("Retrieve changes")
-	msg, err := s.NatsConn.RequestToSubject("sync", nil, time.Second)
+	runningSystem := runtime.GOOS
+	req, err := json.Marshal(share.ClientRequest{ClientId: s.Cfg.ClientId, Time: time.Now(), Agent: runningSystem})
+	if err != nil {
+		slog.Error("Retrieve changes parsing request", "err", err.Error())
+		return
+	}
+	msg, err := s.NatsConn.RequestToSubject("sync", req, time.Second)
 	if err != nil {
 		slog.Error("Retrieve changes request", "err", err.Error())
+		return
 	}
-	fmt.Println(string(msg.Data))
+	var serverResp share.ServerResponse
+	if err := json.Unmarshal(msg.Data, &serverResp); err != nil {
+		slog.Error("Error unmarshalling server response:", "err", err)
+		return
+	}
+
+	if serverResp.Status != "success" {
+		slog.Error("Failure response from server:", "Response", serverResp.Data)
+		return
+	}
+
+	var res []share.SyncResponse
+	json.Unmarshal([]byte(serverResp.Data), &res)
+
+	// TODO: apply other device changes here
+	for _, changeRes := range res {
+		for _, change := range changeRes.Changes {
+			if change.Agent != runningSystem {
+				s.applyChange(changeRes.Dir, change)
+			}
+		}
+	}
+}
+func (s *SyncService) applyChange(dir string, change share.ChangeRequestChange) {
+
+	switch change.ChangeEvent {
+	case "CREATE":
+		// TODO: download file from storage
+		req, _ := json.Marshal(share.DownloadRequest{ClientRequest: share.ClientRequest{ClientId: s.Cfg.ClientId, Time: time.Now(), Agent: runtime.GOOS}, FilePath: fmt.Sprintf("%s%s/%s", s.Cfg.ClientId, dir, change.FileName)})
+		msg, err := s.NatsConn.RequestToSubject("download-file", req, time.Second)
+		if err != nil {
+			slog.Error("Error downloading file", "err", err)
+			return
+		}
+		var res share.ServerResponse
+		err = json.Unmarshal(msg.Data, &res)
+		if err != nil {
+			slog.Error("Error unmarshaling download response", "err", err)
+			return
+		}
+		var downloadRes share.DownloadResponse
+		err = json.Unmarshal([]byte(res.Data), &downloadRes)
+		if err != nil {
+			slog.Error("Error unmarshaling download response", "err", err)
+			return
+		}
+		fileBytes, err := s.downloadFile(downloadRes.Port)
+		if err != nil {
+			slog.Error("Error downloading file", "err", err)
+			return
+		}
+		os.WriteFile(fmt.Sprintf("%s/%s", dir, change.FileName), fileBytes, 0644)
+	case "REMOVE":
+		os.Remove(fmt.Sprintf("%s/%s", dir, change.FileName))
+	}
+	// todo: after applying the change we should record it and don't apply it later
+
 }
 func (s *SyncService) syncChanges() {
 	slog.Info("Syncing changes", "items in channel", len(s.ChangeChan))
 
-	dirMap := make(map[string][]share.ChangeRequestChanges)
+	dirMap := make(map[string][]share.ChangeRequestChange)
 	reqs := make([]share.ChangeRequest, 0)
 
 	for {
@@ -89,6 +151,7 @@ func (s *SyncService) syncChanges() {
 					ClientRequest: share.ClientRequest{
 						ClientId: s.Cfg.ClientId,
 						Time:     time.Now(),
+						Agent:    runtime.GOOS,
 					},
 					Dir:     dir,
 					Changes: changedFiles,
@@ -139,7 +202,7 @@ func (s *SyncService) syncChanges() {
 
 			// Clear the map and slice
 			reqs = reqs[:0]
-			dirMap = make(map[string][]share.ChangeRequestChanges)
+			dirMap = make(map[string][]share.ChangeRequestChange)
 			return
 		}
 	}
@@ -149,6 +212,7 @@ func (s *SyncService) uploadFile(filePath string, port int) {
 	conn, err := net.Dial("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		slog.Error("error dialing to %d: %s", port, err.Error())
+		return
 	}
 	fileSize, _ := share.GetSize(filePath)
 	err = binary.Write(conn, binary.BigEndian, fileSize)
@@ -160,5 +224,29 @@ func (s *SyncService) uploadFile(filePath string, port int) {
 	_, err = io.CopyN(conn, bytes.NewReader(fileByte), fileSize)
 	if err != nil {
 		slog.Error("error sending file to %d: %s", port, err.Error())
+		return
 	}
+}
+
+func (s *SyncService) downloadFile(port int) ([]byte, error) {
+	conn, err := net.Dial("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		slog.Error("error dialing to %d: %s", port, err.Error())
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	var size int64
+	err = binary.Read(conn, binary.BigEndian, &size)
+	if err != nil {
+		slog.Error("Failed to read file size", "err", err)
+		return nil, err
+	}
+	slog.Info("Size received", "size", size)
+	_, err = io.CopyN(buf, conn, size)
+	if err != nil {
+		slog.Error("File reception error", "err", err)
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

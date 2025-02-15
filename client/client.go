@@ -63,7 +63,7 @@ func (c *Client) Sync() {
 				fileName := filepath.Base(event.Name)
 
 				c.SyncService.ChangeChan <- ChangeEvent{
-					File: share.ChangeRequestChanges{
+					File: share.ChangeRequestChange{
 						FileName:    fileName,
 						ChangeEvent: event.Op.String(),
 					},

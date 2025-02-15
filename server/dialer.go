@@ -97,3 +97,71 @@ func (r *ReceiverService) handleUpload(conn net.Conn, fileName string) error {
 	slog.Info("File saved successfully", "path", fileName)
 	return nil
 }
+
+type DownloaderService struct {
+	Cfg         *share.ServerConfig
+	fileStorage FileStorage
+}
+
+func NewDownloaderService(Cfg *share.ServerConfig) *DownloaderService {
+	return &DownloaderService{
+		Cfg,
+		NewMinIoService(Cfg),
+	}
+}
+func (d *DownloaderService) InitDownloader(port int, filePath string) error {
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		slog.Error("Failed to start listener", "err", err)
+		return err
+	}
+	go func() {
+		defer ln.Close()
+
+		slog.Info("Downloader started", "port", port, "path", filePath)
+
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				slog.Error("Failed to accept connection", "err", err)
+				break
+			}
+			go d.handleConnection(conn, filePath, port)
+		}
+
+	}()
+	return nil
+}
+func (d *DownloaderService) handleConnection(conn net.Conn, filePath string, port int) {
+	defer conn.Close()
+	if err := d.handleDownload(conn, filePath); err != nil {
+		slog.Error("Download failed", "err", err)
+	}
+	slog.Info("Transfer completed", "port", port, "path", filePath)
+}
+
+func (d *DownloaderService) handleDownload(conn net.Conn, fileName string) error {
+	reader, err := d.fileStorage.Download(context.Background(), fileName)
+	if err != nil {
+		slog.Error("Failed to get file size", "err", err)
+		return err
+	}
+	defer reader.Close()
+	fileBytes, err := io.ReadAll(reader)
+	if err != nil {
+		slog.Error("Failed to read file", "err", err)
+		return err
+	}
+	fileSize := int64(len(fileBytes))
+	err = binary.Write(conn, binary.BigEndian, fileSize)
+	if err != nil {
+		slog.Error("Failed to send file size", "err", err)
+		return err
+	}
+	_, err = io.CopyN(conn, bytes.NewReader(fileBytes), fileSize)
+	if err != nil {
+		slog.Error("error downloading file", "err", err.Error())
+		return err
+	}
+	return nil
+}

@@ -8,13 +8,17 @@ import (
 )
 
 func main() {
-	id, _ := uuid.NewUUID()
 	share.InitClientConfig()
 	cfg, err := share.GetClientConfig()
+	if cfg.ClientId == "" {
+		id, _ := uuid.NewUUID()
+		cfg.ClientId = id.String()
+		share.WriteClientConfig()
+	}
 	if err != nil {
 		panic(err)
 	}
-	cfg.ClientId = id.String()
+
 	client.NewClient(cfg).Start()
 
 }
