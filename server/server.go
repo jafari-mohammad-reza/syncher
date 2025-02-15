@@ -3,8 +3,9 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nats-io/nats.go"
 	"sync_server/share"
+
+	"github.com/nats-io/nats.go"
 )
 
 type Error struct {
@@ -29,6 +30,7 @@ func NewServer(Cfg *share.ServerConfig) *Server {
 			"sync",
 			"health",
 			"server-change",
+			"download-file",
 		},
 		share.NewNatsConn(Cfg.NatsUrl),
 		NewMessageHandler(Cfg),

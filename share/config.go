@@ -20,7 +20,7 @@ type ServerConfig struct {
 }
 type ClientConfig struct {
 	NatsUrl      string `mapstructure:"NATS_URL"`
-	ClientId     string
+	ClientId     string `mapstructure:"CLIENT_ID"`
 	HttpPort     string   `mapstructure:"HTTP_PORT"`
 	SyncDirs     []string `mapstructure:"SYNC_DIRS"`
 	SyncInterval int      `mapstructure:"SYNC_INTERVAL"`

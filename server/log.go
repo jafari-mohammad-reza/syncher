@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -64,29 +65,41 @@ func (s *Server) recordLog(log Log) error {
 }
 
 type ChangeLogChanges struct {
-	FileName string
-	Change   string
+	FileName string `json:"file_name"`
+	Change   string `json:"change"`
+	Agent string
 }
+
 type ChangeLog struct {
-	ClientId  string
-	ServerId  string
-	ChangeDir string
-	Changes   []ChangeLogChanges
-	Time      time.Time
+	ClientId  string             `json:"client_id"`
+	ServerId  string             `json:"server_id"`
+	ChangeDir string             `json:"change_dir"`
+	Changes   []ChangeLogChanges `json:"changes"`
+	Time      time.Time          `json:"time"`
 }
 
-func recordChange(log ChangeLog) error {
-	logPath := "logs/change.log"
+func recordChangeLog(log ChangeLog) error {
+	logPath := "logs/changes.json"
 
-	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to open log file: %w", err)
+	var logs []ChangeLog
+	file, err := os.ReadFile(logPath)
+	if err == nil {
+		if len(file) > 0 {
+			if err := json.Unmarshal(file, &logs); err != nil {
+				return fmt.Errorf("failed to unmarshal existing logs: %w", err)
+			}
+		}
 	}
-	defer file.Close()
 
-	logMessage := fmt.Sprintf("[%s] clientId: %s - dir: %s - files: %+v - serverId: %s\n", log.Time.Format(time.RFC3339), log.ClientId, log.ChangeDir, log.Changes, log.ServerId)
-	if _, err := file.WriteString(logMessage); err != nil {
-		return fmt.Errorf("failed to write log: %w", err)
+	logs = append(logs, log)
+
+	newData, err := json.MarshalIndent(logs, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal logs: %w", err)
+	}
+
+	if err := os.WriteFile(logPath, newData, 0644); err != nil {
+		return fmt.Errorf("failed to write log file: %w", err)
 	}
 
 	return nil

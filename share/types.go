@@ -19,15 +19,31 @@ type ServerResponse struct {
 type ClientRequest struct {
 	ClientId string
 	Time     time.Time
+	Agent    string
 }
 
-type ChangeRequestChanges struct {
+type ChangeRequestChange struct {
 	FileName    string
 	ChangeEvent string
+	Agent       string
 }
 type ChangeRequest struct {
 	ClientRequest
 	Dir     string
-	Changes []ChangeRequestChanges
+	Changes []ChangeRequestChange
 }
 type ChangeResponse map[string]int
+
+type SyncResponse struct {
+	Dir     string
+	Changes []ChangeRequestChange
+}
+
+type DownloadRequest struct {
+	ClientRequest
+	FilePath string
+}
+
+type DownloadResponse struct {
+	Port int
+}
