@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -9,9 +8,9 @@ import (
 )
 
 type Storage interface {
-	Get(key string) (*[]byte, error)
+	Get(key string) (interface{}, error)
 	Del(key string) error
-	Set(key string, value []byte) error
+	Set(key string, value interface{}) error
 }
 
 type ChangeStorage struct {
@@ -29,38 +28,31 @@ func NewChangeStorage() *ChangeStorage {
 	}
 }
 
-func (storage *ChangeStorage) Get(key string) (*[]byte, error) {
-	return nil, nil
+func (storage *ChangeStorage) Get(key string) (interface{}, error) {
+	data, ok := storage.clientChanges[key]
+	if !ok {
+		return nil, fmt.Errorf("%s key not found", key)
+	}
+	return data, nil
 }
 func (storage *ChangeStorage) Del(key string) error {
 	return nil
 }
-func (storage *ChangeStorage) Set(key string, value []byte) error {
+func (storage *ChangeStorage) Set(key string, value interface{}) error {
 	return nil
 }
 
 func LoadLogs() (map[string][]ChangeLog, error) {
-	file, err := os.Open("logs/changes.json")
+	file, err := os.ReadFile("logs/changes.json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
-	defer file.Close()
-
+	var loadedLog []ChangeLog
+	err = json.Unmarshal(file, &loadedLog)
 	logs := make(map[string][]ChangeLog)
-	scanner := bufio.NewScanner(file)
 
-	for scanner.Scan() {
-		var log ChangeLog
-		err := json.Unmarshal(scanner.Bytes(), &log)
-		if err != nil {
-			continue
-		}
+	for _, log := range loadedLog {
 		logs[log.ClientId] = append(logs[log.ClientId], log)
 	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading log file: %w", err)
-	}
-
 	return logs, nil
 }

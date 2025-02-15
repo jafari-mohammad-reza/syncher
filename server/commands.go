@@ -75,8 +75,7 @@ func (m *MessageHandler) Change(msg *nats.Msg) (*share.ServerResponse, error) {
 		var port int
 		for attempt := 0; attempt < retries; attempt++ {
 			port = rand.IntN(maxPort-minPort) + minPort
-			reciever := NewReceiverService(m.Cfg)
-			err := reciever.InitReceiver(port, fmt.Sprintf("%s%s/%s", req.ClientId, req.Dir, change.FileName))
+			err := m.ReceiverService.InitReceiver(port, fmt.Sprintf("%s%s/%s", req.ClientId, req.Dir, change.FileName))
 
 			if err == nil {
 				break
@@ -154,12 +153,13 @@ func (m *MessageHandler) Sync(msg *nats.Msg) (*share.ServerResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error parsing sync request %s", err.Error())
 	}
-	var res share.SyncResponse
-	var changes []ChangeLog
+	var res []share.SyncResponse
 	clientChanges, err := m.ChangeStorage.Get(req.ClientId)
-	err = json.Unmarshal(*clientChanges, &changes)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching client changes %s", err.Error())
+	}
 	changemap := map[string][]share.ChangeRequestChanges{}
-	for _, ch := range changes {
+	for _, ch := range clientChanges.([]ChangeLog) {
 		respChanges := []share.ChangeRequestChanges{}
 		for _, a := range ch.Changes {
 			respChanges = append(respChanges, share.ChangeRequestChanges{
@@ -168,6 +168,9 @@ func (m *MessageHandler) Sync(msg *nats.Msg) (*share.ServerResponse, error) {
 			})
 		}
 		changemap[ch.ChangeDir] = append(changemap[ch.ChangeDir], respChanges...)
+	}
+	for dir, changes := range changemap {
+		res = append(res, share.SyncResponse{Dir: dir, Changes: changes})
 	}
 	resBytes, _ := json.Marshal(res)
 	return &share.ServerResponse{

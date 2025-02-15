@@ -62,7 +62,11 @@ func (s *SyncService) Listen() {
 }
 func (s *SyncService) retrieveChanges() {
 	slog.Info("Retrieve changes")
-
+	msg, err := s.NatsConn.RequestToSubject("sync", nil, time.Second)
+	if err != nil {
+		slog.Error("Retrieve changes request", "err", err.Error())
+	}
+	fmt.Println(string(msg.Data))
 }
 func (s *SyncService) syncChanges() {
 	slog.Info("Syncing changes", "items in channel", len(s.ChangeChan))
